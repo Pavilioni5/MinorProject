@@ -1,16 +1,21 @@
 # ☁ CloudRec — Cloud Architecture Advisor
 
-A full-stack **Next.js** web application that recommends the ideal cloud architecture (AWS, Azure, or GCP) based on your application type, expected scale, growth trajectory, and monthly budget. Features **Google OAuth** authentication and a **PostgreSQL** database for persistent user management.
+A full-stack **Next.js** web application that recommends the ideal cloud architecture (AWS, Azure, or GCP) based on your application type, expected scale, growth trajectory, and monthly budget. Features **Google OAuth** authentication, **PostgreSQL** database, **interactive charts**, **dark mode**, and **real-time currency conversion**.
 
 ---
 
 ## ✨ Features
 
 - 🔐 **Google OAuth Authentication** — Secure sign-in using Google via Auth.js (NextAuth v5)
-- 🗄️ **PostgreSQL Database** — Persistent user, account, and session storage via Prisma ORM
+- 🗄️ **PostgreSQL Database** — Persistent user, account, session, and recommendation storage via Prisma ORM
 - ☁️ **Cloud Cost Recommender** — Interactive 3-step wizard to get cost-optimized recommendations across AWS, Azure, and GCP
-- 📊 **Provider Comparison** — Side-by-side cost breakdown with growth-adjusted estimates
-- 🎨 **Modern UI** — Clean, responsive design with step indicators, card pickers, and animated components
+- 📊 **Interactive Charts** — Bar charts, radar charts, and component breakdown charts powered by Recharts
+- 💾 **Save & View History** — Save recommendations to the database and revisit them on the Dashboard
+- 🗑️ **Delete Recommendations** — Remove saved recommendations from the dashboard
+- 🌙 **Dark Mode** — Toggle between light and dark themes with localStorage persistence
+- 💱 **Real-Time Currency Conversion** — Live exchange rates (USD, INR, EUR) from ExchangeRate-API with 1-hour caching
+- 📈 **Currency-Aware Budget** — Budget slider adapts to selected currency with automatic conversion
+- 🎨 **Modern UI** — Clean, responsive design with step indicators, card pickers, and smooth animations
 
 ---
 
@@ -22,6 +27,8 @@ A full-stack **Next.js** web application that recommends the ideal cloud archite
 | [Auth.js v5](https://authjs.dev/) | Authentication (Google OAuth) |
 | [Prisma](https://www.prisma.io/) | Database ORM |
 | [PostgreSQL](https://www.postgresql.org/) | Relational database |
+| [Recharts](https://recharts.org/) | Data visualization (charts) |
+| [ExchangeRate-API](https://open.er-api.com/) | Live currency conversion |
 | [Tailwind CSS](https://tailwindcss.com/) | Utility-first CSS |
 | [Shadcn UI](https://ui.shadcn.com/) | UI component library |
 
@@ -32,21 +39,32 @@ A full-stack **Next.js** web application that recommends the ideal cloud archite
 ```
 MinorProject/
 ├── app/
-│   ├── api/auth/[...nextauth]/
-│   │   └── route.js          # Auth.js API route handler
-│   ├── globals.css            # Global styles
-│   ├── layout.js              # Root layout
-│   └── page.js                # Home page (auth gate + main UI)
+│   ├── api/
+│   │   ├── auth/[...nextauth]/
+│   │   │   └── route.js              # Auth.js API route handler
+│   │   ├── recommendations/
+│   │   │   └── route.js              # CRUD API for recommendations (POST, GET, DELETE)
+│   │   └── exchange-rates/
+│   │       └── route.js              # Live exchange rate API with caching
+│   ├── dashboard/
+│   │   ├── page.js                   # Dashboard server component (auth + data fetch)
+│   │   └── DashboardClient.js        # Dashboard client UI (list, detail, charts, delete)
+│   ├── globals.css                   # Global styles
+│   ├── layout.js                     # Root layout (ThemeProvider + CurrencyProvider)
+│   └── page.js                       # Home page (auth gate + CloudRecommender)
 ├── components/
-│   ├── CloudRecommender.js    # Cloud recommendation wizard (client component)
-│   └── ui/                    # Shadcn UI components
+│   ├── CloudRecommender.js           # Cloud recommendation wizard (client component)
+│   ├── Charts.js                     # Recharts components (Bar, Radar, Breakdown)
+│   ├── ThemeProvider.js              # Dark/Light mode context with localStorage
+│   ├── CurrencyProvider.js           # Currency context with live exchange rates
+│   └── ui/                           # Shadcn UI components
 ├── lib/
-│   └── prisma.js              # Prisma client singleton
+│   └── prisma.js                     # Prisma client singleton
 ├── prisma/
-│   └── schema.prisma          # Database schema (User, Account, Session)
-├── auth.js                    # Auth.js configuration (Google provider + Prisma adapter)
-├── .env                       # Database connection string
-├── .env.local                 # Auth secrets (Google OAuth + Auth secret)
+│   └── schema.prisma                 # Database schema (User, Account, Session, Recommendation)
+├── auth.js                           # Auth.js configuration (Google provider + Prisma adapter)
+├── .env                              # Database connection string
+├── .env.local                        # Auth secrets (Google OAuth + Auth secret)
 └── package.json
 ```
 
@@ -63,7 +81,7 @@ MinorProject/
 ### 1. Clone the Repository
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/Pavilioni5/MinorProject.git
 cd MinorProject
 ```
 
@@ -130,7 +148,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## 🗃️ Database Schema
 
-The app uses three tables managed by Prisma:
+The app uses four tables managed by Prisma:
 
 ### User
 | Field | Type | Description |
@@ -146,22 +164,51 @@ The app uses three tables managed by Prisma:
 ### Account
 | Field | Type | Description |
 |---|---|---|
-| id | String | Unique identifier (cuid) |
 | userId | String | Foreign key → User |
 | type | String | Account type (`oidc`) |
 | provider | String | OAuth provider (`google`) |
 | providerAccountId | String | Google account ID |
 | access_token | String? | OAuth access token |
-| refresh_token | String? | OAuth refresh token |
-| expires_at | Int? | Token expiration |
 
 ### Session
 | Field | Type | Description |
 |---|---|---|
-| id | String | Unique identifier (cuid) |
 | sessionToken | String | Unique session token |
 | userId | String | Foreign key → User |
 | expires | DateTime | Session expiry |
+
+### Recommendation
+| Field | Type | Description |
+|---|---|---|
+| id | String | Unique identifier (cuid) |
+| userId | String | Foreign key → User |
+| appType | String | Application type (web_app, api_backend, etc.) |
+| users | Int | Daily active users |
+| growth | String | Growth trajectory (none, low, medium, high) |
+| budget | Float | Monthly budget in USD |
+| results | Json | Full provider comparison results |
+| topPick | String | Recommended provider (aws, azure, gcp) |
+| topCost | Float | Estimated cost of top pick |
+| createdAt | DateTime | When the recommendation was generated |
+
+---
+
+## 💰 Cloud Pricing Reference
+
+All prices are verified on-demand monthly rates (approximate as of 2025):
+
+| Component | AWS | Azure | GCP |
+|---|---|---|---|
+| **Compute (Small, 2GB)** | $16.79 — EC2 t3.small | $18.40 — VM B1ms | $14.60 — e2-small |
+| **Compute (Medium, 4GB)** | $33.58 — EC2 t3.medium | $36.79 — VM B2s | $29.20 — e2-medium |
+| **Compute (Large, 8GB)** | $60.74 — EC2 t3.large | $73.58 — VM B4ms | $58.40 — e2-standard-2 |
+| **Serverless** | $10.95 — Lambda + API GW | $11.68 — Azure Functions | $9.50 — Cloud Functions |
+| **Database (Small)** | $29.20 — RDS db.t3.small | $31.54 — Azure SQL Basic | $25.23 — Cloud SQL micro |
+| **Database (Medium)** | $49.06 — RDS db.t3.medium | $52.56 — Azure SQL S2 | $44.68 — Cloud SQL small |
+| **Database (Large)** | $98.12 — RDS db.t3.large | $105.12 — Azure SQL S4 | $89.36 — Cloud SQL n1-s1 |
+| **Storage (500GB)** | $11.50 — S3 Standard | $10.40 — Blob Storage | $10.00 — Cloud Storage |
+| **CDN (1TB)** | $8.50 — CloudFront | $9.36 — Azure CDN | $8.00 — Cloud CDN |
+| **Load Balancer** | $22.27 — ALB | $25.55 — Azure LB | $21.90 — Cloud LB |
 
 ---
 
