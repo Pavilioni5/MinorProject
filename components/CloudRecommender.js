@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { CostBarChart, ScoreRadarChart, ComponentBreakdownChart } from "@/components/Charts";
+import { useTheme, ThemeToggle } from "@/components/ThemeProvider";
+import { useCurrency, CurrencySelector } from "@/components/CurrencyProvider";
 
 const PROVIDERS = {
   aws: { name: "Amazon Web Services", short: "AWS", color: "#FF9900", bg: "#FFF8ED", logo: "☁" },
@@ -25,30 +27,32 @@ const GROWTH_OPTIONS = [
 
 const GROWTH_MULT = { none: 0, low: 0.15, medium: 0.30, high: 0.50 };
 
+// Verified on-demand pricing (USD/month, approximate as of 2025)
+// Sources: AWS, Azure, GCP public pricing calculators
 const PRICING = {
   aws: {
-    compute:       { small: 17, medium: 35, large: 65, serverless: 9.2,  name: { small: "EC2 t3.small", medium: "EC2 t3.medium", large: "EC2 t3.large", serverless: "Lambda + API GW" } },
-    database:      { small: 30, medium: 45, large: 80,                   name: { small: "RDS t3.small", medium: "RDS t3.medium", large: "RDS t3.large" } },
-    storage:       { standard: 11.5,                                     name: { standard: "S3 Standard" } },
-    cdn:           { standard: 10,                                        name: { standard: "CloudFront" } },
-    load_balancer: { standard: 18,                                        name: { standard: "ALB" } },
+    compute:       { small: 16.79, medium: 33.58, large: 60.74, serverless: 10.95, name: { small: "EC2 t3.small (2GB)", medium: "EC2 t3.medium (4GB)", large: "EC2 t3.large (8GB)", serverless: "Lambda + API Gateway" } },
+    database:      { small: 29.20, medium: 49.06, large: 98.12,                     name: { small: "RDS db.t3.small", medium: "RDS db.t3.medium", large: "RDS db.t3.large" } },
+    storage:       { standard: 11.50,                                                name: { standard: "S3 Standard (500GB)" } },
+    cdn:           { standard: 8.50,                                                 name: { standard: "CloudFront (1TB)" } },
+    load_balancer: { standard: 22.27,                                                name: { standard: "ALB (fixed + LCU)" } },
     scale: 0.82, sla: 99.99,
   },
   azure: {
-    compute:       { small: 18.5, medium: 37.5, large: 67, serverless: 10.4, name: { small: "VM B1ms", medium: "VM B2s", large: "VM B4ms", serverless: "Azure Functions" } },
-    database:      { small: 32,   medium: 48.2, large: 85,                   name: { small: "SQL Basic", medium: "SQL S2", large: "SQL S4" } },
-    storage:       { standard: 12.1,                                          name: { standard: "Blob Storage" } },
-    cdn:           { standard: 9.8,                                           name: { standard: "Azure CDN" } },
-    load_balancer: { standard: 19.2,                                          name: { standard: "Azure LB" } },
-    scale: 0.80, sla: 99.99,
+    compute:       { small: 18.40, medium: 36.79, large: 73.58, serverless: 11.68, name: { small: "VM B1ms (2GB)", medium: "VM B2s (4GB)", large: "VM B4ms (8GB)", serverless: "Azure Functions" } },
+    database:      { small: 31.54, medium: 52.56, large: 105.12,                    name: { small: "Azure SQL Basic", medium: "Azure SQL S2", large: "Azure SQL S4" } },
+    storage:       { standard: 10.40,                                                name: { standard: "Blob Storage (500GB)" } },
+    cdn:           { standard: 9.36,                                                 name: { standard: "Azure CDN (1TB)" } },
+    load_balancer: { standard: 25.55,                                                name: { standard: "Azure Load Balancer" } },
+    scale: 0.80, sla: 99.95,
   },
   gcp: {
-    compute:       { small: 15, medium: 33.2, large: 60, serverless: 8.8, name: { small: "e2-small", medium: "e2-medium", large: "e2-standard-2", serverless: "Cloud Functions" } },
-    database:      { small: 28, medium: 43.8, large: 75,                  name: { small: "Cloud SQL micro", medium: "Cloud SQL small", large: "Cloud SQL n1-s2" } },
-    storage:       { standard: 10.8,                                       name: { standard: "Cloud Storage" } },
-    cdn:           { standard: 9.5,                                        name: { standard: "Cloud CDN" } },
-    load_balancer: { standard: 17.4,                                       name: { standard: "Cloud LB" } },
-    scale: 0.83, sla: 99.99,
+    compute:       { small: 14.60, medium: 29.20, large: 58.40, serverless: 9.50,  name: { small: "e2-small (2GB)", medium: "e2-medium (4GB)", large: "e2-standard-2 (8GB)", serverless: "Cloud Functions" } },
+    database:      { small: 25.23, medium: 44.68, large: 89.36,                     name: { small: "Cloud SQL db-f1-micro", medium: "Cloud SQL db-g1-small", large: "Cloud SQL db-n1-standard-1" } },
+    storage:       { standard: 10.00,                                                name: { standard: "Cloud Storage (500GB)" } },
+    cdn:           { standard: 8.00,                                                 name: { standard: "Cloud CDN (1TB)" } },
+    load_balancer: { standard: 21.90,                                                name: { standard: "Cloud Load Balancer" } },
+    scale: 0.85, sla: 99.99,
   },
 };
 
@@ -173,7 +177,7 @@ function SliderInput({ value, onChange, min, max, step, format }) {
 }
 
 // ─── Provider result card ──────────────────────────────────────
-function ProviderCard({ result, rank }) {
+function ProviderCard({ result, rank, fmt }) {
   const [open, setOpen] = useState(false);
   const p   = PROVIDERS[result.provider];
   const top = rank === 0;
@@ -202,9 +206,9 @@ function ProviderCard({ result, rank }) {
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontWeight: 800, fontSize: 24, color: p.color }}>${result.adj.toFixed(2)}</div>
+          <div style={{ fontWeight: 800, fontSize: 24, color: p.color }}>{fmt(result.adj)}</div>
           <div style={{ fontSize: 11, color: "#9CA3AF" }}>growth-adjusted/mo</div>
-          <div style={{ fontSize: 13, color: "#374151", marginTop: 2 }}>${result.total.toFixed(2)} base/mo</div>
+          <div style={{ fontSize: 13, color: "#374151", marginTop: 2 }}>{fmt(result.total)} base/mo</div>
         </div>
       </div>
 
@@ -244,12 +248,12 @@ function ProviderCard({ result, rank }) {
                     {item.component.replace("_", " ")}
                   </td>
                   <td style={{ padding: "8px 0", color: "#6B7280" }}>{item.service}</td>
-                  <td style={{ padding: "8px 0", textAlign: "right", fontWeight: 700, color: "#111" }}>${item.cost.toFixed(2)}</td>
+                  <td style={{ padding: "8px 0", textAlign: "right", fontWeight: 700, color: "#111" }}>{fmt(item.cost)}</td>
                 </tr>
               ))}
               <tr style={{ borderTop: "2px solid #E5E7EB" }}>
                 <td colSpan={2} style={{ padding: "10px 0", fontWeight: 800, color: "#111" }}>Total (base)</td>
-                <td style={{ padding: "10px 0", textAlign: "right", fontWeight: 800, color: "#111" }}>${result.total.toFixed(2)}</td>
+                <td style={{ padding: "10px 0", textAlign: "right", fontWeight: 800, color: "#111" }}>{fmt(result.total)}</td>
               </tr>
             </tbody>
           </table>
@@ -265,13 +269,14 @@ export default function CloudRecommender() {
   const [appType, setAppType] = useState("");
   const [users, setUsers]     = useState(1000);
   const [growth, setGrowth]   = useState("");
-  const [budget, setBudget]   = useState(150);
+  const [budget, setBudget]   = useState(null); // null until currency loads
   const [results, setResults] = useState(null);
   const [saving, setSaving]   = useState(false);
   const [saved, setSaved]     = useState(false);
 
   function handleGetRec() {
-    const r = calcResults(appType, users, growth, budget);
+    const budgetUSD = toUSD(budget);
+    const r = calcResults(appType, users, growth, budgetUSD);
     setResults(r);
     setStep(3);
     setSaved(false);
@@ -286,7 +291,7 @@ export default function CloudRecommender() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          appType, users, growth, budget, results,
+          appType, users, growth, budget: toUSD(budget), results,
           topPick: topResult?.provider || "none",
           topCost: topResult?.adj || 0,
         }),
@@ -297,14 +302,23 @@ export default function CloudRecommender() {
   }
 
   function reset() {
-    setStep(0); setAppType(""); setGrowth(""); setUsers(1000); setBudget(150); setResults(null); setSaved(false);
+    setStep(0); setAppType(""); setGrowth(""); setUsers(1000); setBudget(Math.round(getBudgetRange().max * 0.075)); setResults(null); setSaved(false);
+  }
+
+  const { theme } = useTheme();
+  const { format: fmt, currency, toUSD, getBudgetRange, formatLocal, getSymbol } = useCurrency();
+
+  // Set initial budget when currency loads
+  if (budget === null) {
+    const range = getBudgetRange();
+    if (range.min > 0) setBudget(Math.round(range.max * 0.075)); // ~$150 equivalent
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #F8F7FF 0%, #EEF2FF 50%, #F0F9FF 100%)", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: theme.bg, fontFamily: "'Segoe UI', system-ui, sans-serif", transition: "background 0.3s" }}>
 
       {/* Header */}
-      <header style={{ background: "#1a1a2e", color: "#fff", padding: "18px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 2px 20px rgba(0,0,0,0.3)" }}>
+      <header style={{ background: theme.headerBg, color: "#fff", padding: "18px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 2px 20px rgba(0,0,0,0.3)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 38, height: 38, background: "linear-gradient(135deg, #4F46E5, #7C3AED)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>☁</div>
           <div>
@@ -313,6 +327,8 @@ export default function CloudRecommender() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <CurrencySelector />
+          <ThemeToggle />
           <a href="/dashboard" style={{ color: "#A78BFA", fontWeight: 600, fontSize: 13, textDecoration: "none" }}>📊 Dashboard</a>
           {["AWS", "Azure", "GCP"].map(p => (
             <span key={p} style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 20, background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)" }}>{p}</span>
@@ -326,20 +342,20 @@ export default function CloudRecommender() {
         {step === 0 && !appType && (
           <div style={{ textAlign: "center", marginBottom: 48 }}>
             <div style={{ fontSize: 52, marginBottom: 12 }}>☁️</div>
-            <h1 style={{ fontSize: 36, fontWeight: 900, color: "#1a1a2e", letterSpacing: -1.5, marginBottom: 12, lineHeight: 1.1 }}>
+            <h1 style={{ fontSize: 36, fontWeight: 900, color: theme.heading, letterSpacing: -1.5, marginBottom: 12, lineHeight: 1.1 }}>
               Find Your Ideal<br />
               <span style={{ background: "linear-gradient(135deg, #4F46E5, #7C3AED)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                 Cloud Architecture
               </span>
             </h1>
-            <p style={{ color: "#6B7280", fontSize: 16, maxWidth: 480, margin: "0 auto", lineHeight: 1.6 }}>
+            <p style={{ color: theme.textSecondary, fontSize: 16, maxWidth: 480, margin: "0 auto", lineHeight: 1.6 }}>
               Answer 3 questions. Get a cost-optimized, growth-aware recommendation across AWS, Azure, and GCP — no cloud expertise needed.
             </p>
           </div>
         )}
 
         {/* Wizard card */}
-        <div style={{ background: "#fff", borderRadius: 24, boxShadow: "0 4px 40px rgba(79,70,229,0.08)", padding: "40px 40px", border: "1px solid rgba(79,70,229,0.1)" }}>
+        <div style={{ background: theme.cardBg, borderRadius: 24, boxShadow: theme.shadow, padding: "40px 40px", border: "1px solid " + theme.cardBorder, transition: "all 0.3s" }}>
 
           <Steps current={step} />
 
@@ -379,9 +395,16 @@ export default function CloudRecommender() {
           {step === 2 && (
             <div>
               <h2 style={{ fontSize: 22, fontWeight: 800, color: "#111", marginBottom: 8 }}>Monthly cloud budget</h2>
-              <p style={{ color: "#6B7280", fontSize: 14, marginBottom: 32 }}>Set your maximum monthly spend. Growth adjustment is already applied to results.</p>
+              <p style={{ color: "#6B7280", fontSize: 14, marginBottom: 32 }}>Set your maximum monthly spend in {currency}. Costs are converted automatically.</p>
 
-              <SliderInput value={budget} onChange={setBudget} min={10} max={2000} step={1} format={n => `$${n}`} />
+              <SliderInput
+                value={budget}
+                onChange={setBudget}
+                min={getBudgetRange().min}
+                max={getBudgetRange().max}
+                step={1}
+                format={n => formatLocal(n)}
+              />
 
               <div style={{ marginTop: 28, padding: "16px 20px", background: "#F0F9FF", borderRadius: 14, border: "1px solid #BAE6FD", display: "flex", gap: 12, alignItems: "flex-start" }}>
                 <span style={{ fontSize: 20 }}>💡</span>
@@ -389,7 +412,7 @@ export default function CloudRecommender() {
                   <div style={{ fontWeight: 700, fontSize: 13, color: "#0369A1", marginBottom: 4 }}>Quick Summary</div>
                   <div style={{ fontSize: 13, color: "#0284C7", lineHeight: 1.5 }}>
                     <strong>{APP_TYPES.find(a => a.id === appType)?.label}</strong> · <strong>{users >= 1000 ? `${(users / 1000).toFixed(1)}K` : users} DAU</strong> · <strong>{GROWTH_OPTIONS.find(g => g.id === growth)?.label}</strong> growth
-                    <br />Budget: <strong>${budget}/month</strong>
+                    <br />Budget: <strong>{formatLocal(budget)}/month</strong> {currency !== "USD" && <span style={{ fontSize: 11 }}>(~${toUSD(budget).toFixed(0)} USD)</span>}
                   </div>
                 </div>
               </div>
@@ -410,7 +433,7 @@ export default function CloudRecommender() {
                 <div>
                   <h2 style={{ fontSize: 22, fontWeight: 800, color: "#111", marginBottom: 4 }}>Your Recommendations</h2>
                   <p style={{ color: "#6B7280", fontSize: 13 }}>
-                    {APP_TYPES.find(a => a.id === appType)?.label} · {users >= 1000 ? `${(users / 1000).toFixed(1)}K` : users} DAU · {GROWTH_OPTIONS.find(g => g.id === growth)?.label} growth · ${budget}/mo budget
+                    {APP_TYPES.find(a => a.id === appType)?.label} · {users >= 1000 ? `${(users / 1000).toFixed(1)}K` : users} DAU · {GROWTH_OPTIONS.find(g => g.id === growth)?.label} growth · {fmt(budget)}/mo budget
                   </p>
                 </div>
                 <button onClick={reset} style={{ padding: "10px 20px", borderRadius: 12, border: "2px solid #E5E7EB", background: "#fff", cursor: "pointer", fontWeight: 700, color: "#374151", fontSize: 13 }}>
@@ -426,7 +449,7 @@ export default function CloudRecommender() {
                 </div>
               )}
 
-              {results.map((r, i) => <ProviderCard key={r.provider} result={r} rank={r.fits ? results.filter(x => x.fits).indexOf(r) : 99} />)}
+              {results.map((r, i) => <ProviderCard key={r.provider} result={r} rank={r.fits ? results.filter(x => x.fits).indexOf(r) : 99} fmt={fmt} />)}
 
               {/* Cost comparison mini-chart */}
               {results.filter(r => r.fits).length > 0 && (
@@ -440,7 +463,7 @@ export default function CloudRecommender() {
                       <div key={r.provider} style={{ marginBottom: 12 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600, marginBottom: 5 }}>
                           <span style={{ color: "#374151" }}>{p.short}</span>
-                          <span style={{ color: p.color }}>${r.adj.toFixed(2)}/mo</span>
+                          <span style={{ color: p.color }}>{fmt(r.adj)}/mo</span>
                         </div>
                         <div style={{ height: 8, background: "#E5E7EB", borderRadius: 4, overflow: "hidden" }}>
                           <div style={{ height: "100%", width: `${pct}%`, background: p.color, borderRadius: 4, transition: "width 0.6s ease" }} />

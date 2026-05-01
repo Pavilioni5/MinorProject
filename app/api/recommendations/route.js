@@ -56,3 +56,28 @@ export async function GET() {
 
   return NextResponse.json(recommendations)
 }
+
+export async function DELETE(req) {
+  const session = await auth()
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+  })
+
+  if (!user) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 })
+  }
+
+  const { id } = await req.json()
+
+  const rec = await prisma.recommendation.findUnique({ where: { id } })
+  if (!rec || rec.userId !== user.id) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+
+  await prisma.recommendation.delete({ where: { id } })
+  return NextResponse.json({ success: true })
+}
