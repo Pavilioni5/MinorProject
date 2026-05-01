@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CostBarChart, ScoreRadarChart, ComponentBreakdownChart } from "@/components/Charts";
 
 const PROVIDERS = {
   aws: { name: "Amazon Web Services", short: "AWS", color: "#FF9900", bg: "#FFF8ED", logo: "☁" },
@@ -266,15 +267,37 @@ export default function CloudRecommender() {
   const [growth, setGrowth]   = useState("");
   const [budget, setBudget]   = useState(150);
   const [results, setResults] = useState(null);
+  const [saving, setSaving]   = useState(false);
+  const [saved, setSaved]     = useState(false);
 
   function handleGetRec() {
     const r = calcResults(appType, users, growth, budget);
     setResults(r);
     setStep(3);
+    setSaved(false);
+  }
+
+  async function handleSave() {
+    if (!results || saving || saved) return;
+    setSaving(true);
+    const topResult = results.find(r => r.fits);
+    try {
+      await fetch("/api/recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appType, users, growth, budget, results,
+          topPick: topResult?.provider || "none",
+          topCost: topResult?.adj || 0,
+        }),
+      });
+      setSaved(true);
+    } catch (e) { console.error(e); }
+    setSaving(false);
   }
 
   function reset() {
-    setStep(0); setAppType(""); setGrowth(""); setUsers(1000); setBudget(150); setResults(null);
+    setStep(0); setAppType(""); setGrowth(""); setUsers(1000); setBudget(150); setResults(null); setSaved(false);
   }
 
   return (
@@ -289,7 +312,8 @@ export default function CloudRecommender() {
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: -2 }}>Cloud Architecture Advisor</div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <a href="/dashboard" style={{ color: "#A78BFA", fontWeight: 600, fontSize: 13, textDecoration: "none" }}>📊 Dashboard</a>
           {["AWS", "Azure", "GCP"].map(p => (
             <span key={p} style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 20, background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)" }}>{p}</span>
           ))}
@@ -427,10 +451,40 @@ export default function CloudRecommender() {
                 </div>
               )}
 
+              {/* Charts */}
+              {results.filter(r => r.fits).length > 0 && (
+                <>
+                  <div style={{ marginTop: 32, background: "#fff", borderRadius: 16, padding: "24px", border: "1px solid #E5E7EB" }}>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#374151", marginBottom: 16 }}>💰 Cost Comparison</h3>
+                    <CostBarChart results={results} />
+                  </div>
+                  <div style={{ marginTop: 16, background: "#fff", borderRadius: 16, padding: "24px", border: "1px solid #E5E7EB" }}>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#374151", marginBottom: 16 }}>📊 Provider Scores</h3>
+                    <ScoreRadarChart results={results} />
+                  </div>
+                  <div style={{ marginTop: 16, background: "#fff", borderRadius: 16, padding: "24px", border: "1px solid #E5E7EB" }}>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#374151", marginBottom: 16 }}>🔧 Component Breakdown</h3>
+                    <ComponentBreakdownChart results={results} />
+                  </div>
+                </>
+              )}
+
               {/* Architecture note */}
               <div style={{ marginTop: 20, padding: "16px 20px", background: "#F0FDF4", borderRadius: 14, border: "1px solid #BBF7D0", fontSize: 13, color: "#166534" }}>
                 <strong>Components selected for your workload:</strong>{" "}
                 {getComponents(appType, users).map(c => c.type.replace("_", " ")).join(" · ")}
+              </div>
+
+              {/* Save & Dashboard buttons */}
+              <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
+                <button onClick={handleSave} disabled={saving || saved} style={{ flex: 1, padding: "14px 24px", borderRadius: 12, border: "none", background: saved ? "#10B981" : "linear-gradient(135deg, #4F46E5, #7C3AED)", color: "#fff", cursor: saving || saved ? "default" : "pointer", fontWeight: 700, fontSize: 14, transition: "all 0.3s" }}>
+                  {saved ? "✓ Saved to Dashboard" : saving ? "Saving..." : "💾 Save Recommendation"}
+                </button>
+                {saved && (
+                  <a href="/dashboard" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "14px 24px", borderRadius: 12, border: "2px solid #4F46E5", background: "#fff", color: "#4F46E5", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
+                    View Dashboard →
+                  </a>
+                )}
               </div>
             </div>
           )}
