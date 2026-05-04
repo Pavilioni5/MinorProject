@@ -1,25 +1,28 @@
 import { signIn, auth, signOut } from "@/auth"
 import CloudRecommender from "@/components/CloudRecommender"
+import LandingPage from "@/components/LandingPage"
 
 export default async function Home() {
-  const session = await auth()
+  let session = null
+  try {
+    session = await auth()
+  } catch (e) {
+    // DB may be unreachable — show landing page
+    console.error("Auth error:", e.message)
+  }
 
   if (!session) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-        <h1 className="text-3xl font-bold mb-4">Welcome to CloudRec</h1>
-        <p className="mb-8 text-gray-600">Please sign in to access the Cloud Recommender</p>
-        <form
-          action={async () => {
-            "use server"
-            await signIn("google")
-          }}
-        >
-          <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 transition-colors text-white font-medium rounded-lg shadow-md">
-            Login with Google
-          </button>
-        </form>
-      </div>
+      <LandingPage
+        signInAction={async () => {
+          "use server"
+          await signIn("google")
+        }}
+        signUpAction={async () => {
+          "use server"
+          await signIn("google")
+        }}
+      />
     )
   }
 
