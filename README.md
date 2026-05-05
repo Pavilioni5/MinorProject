@@ -1,25 +1,25 @@
-# ☁ CloudRec — Cloud Architecture Advisor
+# CloudRec — Cloud Architecture Advisor
 
 A full-stack **Next.js** web application that recommends the ideal cloud architecture (AWS, Azure, or GCP) based on your application type, expected scale, growth trajectory, and monthly budget. Features **Google OAuth** authentication, **PostgreSQL** database, **interactive charts**, **dark mode**, and **real-time currency conversion**.
 
 ---
 
-## ✨ Features
+## Features
 
-- 🔐 **Google OAuth Authentication** — Secure sign-in using Google via Auth.js (NextAuth v5)
-- 🗄️ **PostgreSQL Database** — Persistent user, account, session, and recommendation storage via Prisma ORM
-- ☁️ **Cloud Cost Recommender** — Interactive 3-step wizard to get cost-optimized recommendations across AWS, Azure, and GCP
-- 📊 **Interactive Charts** — Bar charts, radar charts, and component breakdown charts powered by Recharts
-- 💾 **Save & View History** — Save recommendations to the database and revisit them on the Dashboard
-- 🗑️ **Delete Recommendations** — Remove saved recommendations from the dashboard
-- 🌙 **Dark Mode** — Toggle between light and dark themes with localStorage persistence
-- 💱 **Real-Time Currency Conversion** — Live exchange rates (USD, INR, EUR) from ExchangeRate-API with 1-hour caching
-- 📈 **Currency-Aware Budget** — Budget slider adapts to selected currency with automatic conversion
-- 🎨 **Modern UI** — Clean, responsive design with step indicators, card pickers, and smooth animations
+- **Google OAuth Authentication** — Secure sign-in using Google via Auth.js (NextAuth v5)
+- **PostgreSQL Database** — Persistent user, account, session, and recommendation storage via Prisma ORM
+- **Cloud Cost Recommender** — Interactive 3-step wizard to get cost-optimized recommendations across AWS, Azure, and GCP
+- **Interactive Charts** — Bar charts, radar charts, and component breakdown charts powered by Recharts
+- **Save & View History** — Save recommendations to the database and revisit them on the Dashboard
+- **Delete Recommendations** — Remove saved recommendations from the dashboard
+- **Dark Mode** — Toggle between light and dark themes with localStorage persistence
+- **Real-Time Currency Conversion** — Live exchange rates (USD, INR, EUR) from ExchangeRate-API with 1-hour caching
+- **Currency-Aware Budget** — Budget slider adapts to selected currency with automatic conversion
+- **Modern UI** — Clean, responsive design with step indicators, card pickers, and smooth animations
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Technology | Purpose |
 |---|---|
@@ -34,7 +34,7 @@ A full-stack **Next.js** web application that recommends the ideal cloud archite
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 MinorProject/
@@ -70,7 +70,7 @@ MinorProject/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -146,7 +146,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 🗃️ Database Schema
+## Database Schema
 
 The app uses four tables managed by Prisma:
 
@@ -193,7 +193,7 @@ The app uses four tables managed by Prisma:
 
 ---
 
-## 💰 Cloud Pricing Reference
+## Cloud Pricing Reference
 
 All prices are verified on-demand monthly rates (approximate as of 2025):
 
@@ -212,7 +212,7 @@ All prices are verified on-demand monthly rates (approximate as of 2025):
 
 ---
 
-## 🔧 Useful Commands
+## Useful Commands
 
 | Command | Description |
 |---|---|
@@ -225,23 +225,43 @@ All prices are verified on-demand monthly rates (approximate as of 2025):
 
 ---
 
-## 🌐 Deploying to Vercel
+## Deploying to Vercel
 
-1. Push your code to GitHub
-2. Import the repo on [Vercel](https://vercel.com/)
-3. Add the following **Environment Variables** in Vercel dashboard:
-   - `DATABASE_URL` — your production PostgreSQL connection string (e.g., from [Neon](https://neon.tech/), [Supabase](https://supabase.com/), or [Railway](https://railway.app/))
+To deploy your application to Vercel successfully, you need to use a cloud-hosted PostgreSQL database (like Neon) instead of localhost.
+
+### 1. Set Up a Cloud Database (Neon)
+1. Sign up at [neon.tech](https://neon.tech/) and create a new project.
+2. Copy your connection string (make sure you click the eye icon to reveal the password). It will look like:
+   `postgresql://neondb_owner:YOUR_PASSWORD@ep-...aws.neon.tech/neondb?sslmode=require`
+3. Open a new terminal in your project and push your Prisma schema to this new database:
+   ```bash
+   $env:DATABASE_URL="<YOUR_NEON_URL>"
+   npx prisma db push
+   ```
+
+### 2. Configure Vercel
+1. Push your code to GitHub and import the repository into [Vercel](https://vercel.com/).
+2. In your Vercel project dashboard, go to **Settings** -> **Environment Variables**.
+3. Add the following variables (ensure they apply to the **Production** environment):
+   - `DATABASE_URL` — your Neon production PostgreSQL connection string
    - `AUTH_GOOGLE_ID` — your Google OAuth Client ID
    - `AUTH_GOOGLE_SECRET` — your Google OAuth Client Secret
-   - `AUTH_SECRET` — your random secret key
-4. Add your Vercel domain to **Authorized redirect URIs** in Google Cloud Console:
+   - `AUTH_SECRET` — your random secret key (e.g., generated via `openssl rand -base64 32`)
+   - *(Note: Ensure the key is named `DATABASE_URL` exactly, avoiding typos like `DATABASE_UR`)*
+
+### 3. Update Google Cloud Console
+1. Go to your [Google Cloud Console](https://console.cloud.google.com/) OAuth 2.0 Credentials.
+2. Under **Authorized redirect URIs**, add your Vercel production domain:
    ```
    https://your-app.vercel.app/api/auth/callback/google
    ```
-5. Deploy!
+
+### 4. Deploy!
+1. If you just added the environment variables, go to the **Deployments** tab.
+2. Click the three dots (`...`) on your latest deployment and select **Redeploy**.
 
 ---
 
-## 📝 License
+## License
 
 This project is part of a Minor Project submission.
