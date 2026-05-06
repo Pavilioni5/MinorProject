@@ -22,7 +22,7 @@ const GROWTH_OPTIONS = [
   { id: "none", label: "No Growth", icon: "→", desc: "Stable usage expected", mult: 0 },
   { id: "low", label: "Low Growth", icon: "↗", desc: "+15% cost buffer", mult: 15 },
   { id: "medium", label: "Medium Growth", icon: "⬈", desc: "+30% cost buffer", mult: 30 },
-  { id: "high", label: "High Growth", icon: "🚀", desc: "+50% cost buffer", mult: 50 },
+  { id: "high", label: "High Growth", icon: "⬈⬈", desc: "+50% cost buffer", mult: 50 },
 ];
 
 const GROWTH_MULT = { none: 0, low: 0.15, medium: 0.30, high: 0.50 };
